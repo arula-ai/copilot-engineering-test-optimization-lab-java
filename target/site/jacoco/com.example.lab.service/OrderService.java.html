@@ -1,0 +1,204 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>OrderService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Test Optimization Lab</a> &gt; <a href="index.source.html" class="el_package">com.example.lab.service</a> &gt; <span class="el_source">OrderService.java</span></div><h1>OrderService.java</h1><pre class="source lang-java linenums">package com.example.lab.service;
+
+import com.example.lab.model.dto.CreateOrderRequest;
+import com.example.lab.model.entity.Order;
+import com.example.lab.model.entity.OrderItem;
+import com.example.lab.model.enums.OrderStatus;
+import com.example.lab.repository.OrderRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDate;
+import java.util.*;
+
+@Service
+@RequiredArgsConstructor
+public class OrderService {
+
+    private final OrderRepository orderRepository;
+
+<span class="fc" id="L23">    private static final BigDecimal TAX_RATE = new BigDecimal(&quot;0.08&quot;);</span>
+<span class="fc" id="L24">    private static final BigDecimal FREE_SHIPPING_THRESHOLD = new BigDecimal(&quot;100&quot;);</span>
+<span class="fc" id="L25">    private static final BigDecimal STANDARD_SHIPPING = new BigDecimal(&quot;9.99&quot;);</span>
+
+<span class="fc" id="L27">    private static final Map&lt;OrderStatus, Set&lt;OrderStatus&gt;&gt; VALID_TRANSITIONS = Map.of(</span>
+<span class="fc" id="L28">        OrderStatus.DRAFT, Set.of(OrderStatus.PENDING, OrderStatus.CANCELLED),</span>
+<span class="fc" id="L29">        OrderStatus.PENDING, Set.of(OrderStatus.CONFIRMED, OrderStatus.CANCELLED),</span>
+<span class="fc" id="L30">        OrderStatus.CONFIRMED, Set.of(OrderStatus.PROCESSING, OrderStatus.CANCELLED),</span>
+<span class="fc" id="L31">        OrderStatus.PROCESSING, Set.of(OrderStatus.SHIPPED, OrderStatus.CANCELLED),</span>
+<span class="fc" id="L32">        OrderStatus.SHIPPED, Set.of(OrderStatus.DELIVERED),</span>
+<span class="fc" id="L33">        OrderStatus.DELIVERED, Set.of(OrderStatus.REFUNDED),</span>
+<span class="fc" id="L34">        OrderStatus.CANCELLED, Set.of(),</span>
+<span class="fc" id="L35">        OrderStatus.REFUNDED, Set.of()</span>
+    );
+
+    @Transactional
+    public Order createOrder(CreateOrderRequest request) {
+        // Validate items
+<span class="pc bpc" id="L41" title="2 of 4 branches missed.">        if (request.getItems() == null || request.getItems().isEmpty()) {</span>
+<span class="nc" id="L42">            throw new IllegalArgumentException(&quot;Order must contain at least one item&quot;);</span>
+        }
+
+<span class="fc bfc" id="L45" title="All 2 branches covered.">        for (var itemRequest : request.getItems()) {</span>
+<span class="pc bpc" id="L46" title="1 of 2 branches missed.">            if (itemRequest.getQuantity() &lt;= 0) {</span>
+<span class="nc" id="L47">                throw new IllegalArgumentException(&quot;Item quantity must be positive&quot;);</span>
+            }
+<span class="pc bpc" id="L49" title="1 of 2 branches missed.">            if (itemRequest.getUnitPrice().compareTo(BigDecimal.ZERO) &lt; 0) {</span>
+<span class="nc" id="L50">                throw new IllegalArgumentException(&quot;Item price cannot be negative&quot;);</span>
+            }
+<span class="fc" id="L52">        }</span>
+
+        // Validate shipping address
+<span class="pc bpc" id="L55" title="2 of 4 branches missed.">        if (request.getShippingAddress() == null || !request.getShippingAddress().isValid()) {</span>
+<span class="nc" id="L56">            throw new IllegalArgumentException(&quot;Invalid shipping address&quot;);</span>
+        }
+
+        // Create order
+<span class="fc" id="L60">        Order order = Order.builder()</span>
+<span class="fc" id="L61">            .userId(request.getUserId())</span>
+<span class="fc" id="L62">            .shippingAddress(request.getShippingAddress())</span>
+<span class="fc" id="L63">            .notes(request.getNotes())</span>
+<span class="fc" id="L64">            .status(OrderStatus.DRAFT)</span>
+<span class="fc" id="L65">            .build();</span>
+
+        // Add items
+<span class="fc bfc" id="L68" title="All 2 branches covered.">        for (var itemRequest : request.getItems()) {</span>
+<span class="fc" id="L69">            OrderItem item = OrderItem.builder()</span>
+<span class="fc" id="L70">                .productId(itemRequest.getProductId())</span>
+<span class="fc" id="L71">                .quantity(itemRequest.getQuantity())</span>
+<span class="fc" id="L72">                .unitPrice(itemRequest.getUnitPrice())</span>
+<span class="fc" id="L73">                .discount(itemRequest.getDiscount())</span>
+<span class="fc" id="L74">                .build();</span>
+<span class="fc" id="L75">            order.addItem(item);</span>
+<span class="fc" id="L76">        }</span>
+
+        // Calculate totals
+<span class="fc" id="L79">        calculateTotals(order);</span>
+
+<span class="fc" id="L81">        return orderRepository.save(order);</span>
+    }
+
+    public Optional&lt;Order&gt; getOrder(String id) {
+<span class="nc" id="L85">        return orderRepository.findById(id);</span>
+    }
+
+    public List&lt;Order&gt; getUserOrders(String userId) {
+<span class="nc" id="L89">        return orderRepository.findByUserId(userId);</span>
+    }
+
+    public List&lt;Order&gt; getOrdersByStatus(OrderStatus status) {
+<span class="nc" id="L93">        return orderRepository.findByStatus(status);</span>
+    }
+
+    @Transactional
+    public Order updateOrderStatus(String orderId, OrderStatus newStatus) {
+<span class="fc" id="L98">        Order order = orderRepository.findById(orderId)</span>
+<span class="pc" id="L99">            .orElseThrow(() -&gt; new IllegalArgumentException(&quot;Order not found: &quot; + orderId));</span>
+
+<span class="fc" id="L101">        OrderStatus currentStatus = order.getStatus();</span>
+<span class="fc" id="L102">        Set&lt;OrderStatus&gt; allowedTransitions = VALID_TRANSITIONS.getOrDefault(currentStatus, Set.of());</span>
+
+<span class="fc bfc" id="L104" title="All 2 branches covered.">        if (!allowedTransitions.contains(newStatus)) {</span>
+<span class="fc" id="L105">            throw new IllegalStateException(</span>
+                &quot;Cannot transition from &quot; + currentStatus + &quot; to &quot; + newStatus
+            );
+        }
+
+<span class="fc" id="L110">        order.setStatus(newStatus);</span>
+<span class="fc" id="L111">        return orderRepository.save(order);</span>
+    }
+
+    @Transactional
+    public Order cancelOrder(String orderId) {
+<span class="fc" id="L116">        Order order = orderRepository.findById(orderId)</span>
+<span class="pc" id="L117">            .orElseThrow(() -&gt; new IllegalArgumentException(&quot;Order not found: &quot; + orderId));</span>
+
+<span class="pc bpc" id="L119" title="1 of 4 branches missed.">        if (order.getStatus() == OrderStatus.SHIPPED || order.getStatus() == OrderStatus.DELIVERED) {</span>
+<span class="fc" id="L120">            throw new IllegalStateException(&quot;Cannot cancel order in &quot; + order.getStatus() + &quot; status&quot;);</span>
+        }
+
+<span class="fc" id="L123">        order.setStatus(OrderStatus.CANCELLED);</span>
+<span class="fc" id="L124">        return orderRepository.save(order);</span>
+    }
+
+    @Transactional
+    public Order addItem(String orderId, String productId, int quantity, BigDecimal unitPrice, int discount) {
+<span class="nc" id="L129">        Order order = orderRepository.findById(orderId)</span>
+<span class="nc" id="L130">            .orElseThrow(() -&gt; new IllegalArgumentException(&quot;Order not found: &quot; + orderId));</span>
+
+<span class="nc bnc" id="L132" title="All 2 branches missed.">        if (order.getStatus() != OrderStatus.DRAFT) {</span>
+<span class="nc" id="L133">            throw new IllegalStateException(&quot;Can only modify orders in draft status&quot;);</span>
+        }
+
+<span class="nc bnc" id="L136" title="All 2 branches missed.">        if (quantity &lt;= 0) {</span>
+<span class="nc" id="L137">            throw new IllegalArgumentException(&quot;Quantity must be positive&quot;);</span>
+        }
+
+<span class="nc" id="L140">        OrderItem item = OrderItem.builder()</span>
+<span class="nc" id="L141">            .productId(productId)</span>
+<span class="nc" id="L142">            .quantity(quantity)</span>
+<span class="nc" id="L143">            .unitPrice(unitPrice)</span>
+<span class="nc" id="L144">            .discount(discount)</span>
+<span class="nc" id="L145">            .build();</span>
+
+<span class="nc" id="L147">        order.addItem(item);</span>
+<span class="nc" id="L148">        calculateTotals(order);</span>
+
+<span class="nc" id="L150">        return orderRepository.save(order);</span>
+    }
+
+    @Transactional
+    public Order removeItem(String orderId, String itemId) {
+<span class="nc" id="L155">        Order order = orderRepository.findById(orderId)</span>
+<span class="nc" id="L156">            .orElseThrow(() -&gt; new IllegalArgumentException(&quot;Order not found: &quot; + orderId));</span>
+
+<span class="nc bnc" id="L158" title="All 2 branches missed.">        if (order.getStatus() != OrderStatus.DRAFT) {</span>
+<span class="nc" id="L159">            throw new IllegalStateException(&quot;Can only modify orders in draft status&quot;);</span>
+        }
+
+<span class="nc" id="L162">        order.getItems().removeIf(item -&gt; item.getId().equals(itemId));</span>
+<span class="nc" id="L163">        calculateTotals(order);</span>
+
+<span class="nc" id="L165">        return orderRepository.save(order);</span>
+    }
+
+    public void calculateTotals(Order order) {
+<span class="fc" id="L169">        BigDecimal subtotal = order.getItems().stream()</span>
+<span class="fc" id="L170">            .map(OrderItem::getTotal)</span>
+<span class="fc" id="L171">            .reduce(BigDecimal.ZERO, BigDecimal::add);</span>
+
+<span class="fc" id="L173">        BigDecimal tax = subtotal.multiply(TAX_RATE).setScale(2, RoundingMode.HALF_UP);</span>
+
+<span class="fc bfc" id="L175" title="All 2 branches covered.">        BigDecimal shipping = subtotal.compareTo(FREE_SHIPPING_THRESHOLD) &gt;= 0</span>
+<span class="fc" id="L176">            ? BigDecimal.ZERO</span>
+<span class="fc" id="L177">            : STANDARD_SHIPPING;</span>
+
+<span class="fc" id="L179">        BigDecimal total = subtotal.add(tax).add(shipping).setScale(2, RoundingMode.HALF_UP);</span>
+
+<span class="fc" id="L181">        order.setSubtotal(subtotal);</span>
+<span class="fc" id="L182">        order.setTax(tax);</span>
+<span class="fc" id="L183">        order.setShipping(shipping);</span>
+<span class="fc" id="L184">        order.setTotal(total);</span>
+<span class="fc" id="L185">    }</span>
+
+    public LocalDate getEstimatedDelivery(String shippingMethod) {
+<span class="pc bpc" id="L188" title="2 of 3 branches missed.">        int days = switch (shippingMethod.toLowerCase()) {</span>
+<span class="nc" id="L189">            case &quot;overnight&quot; -&gt; 1;</span>
+<span class="nc" id="L190">            case &quot;express&quot; -&gt; 2;</span>
+<span class="fc" id="L191">            default -&gt; 5; // standard</span>
+        };
+
+<span class="fc" id="L194">        LocalDate deliveryDate = LocalDate.now().plusDays(days);</span>
+
+        // Skip weekends
+<span class="pc bpc" id="L197" title="1 of 2 branches missed.">        while (deliveryDate.getDayOfWeek().getValue() &gt; 5) {</span>
+<span class="nc" id="L198">            deliveryDate = deliveryDate.plusDays(1);</span>
+        }
+
+<span class="fc" id="L201">        return deliveryDate;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

@@ -1,0 +1,17 @@
+GROUP,PACKAGE,CLASS,INSTRUCTION_MISSED,INSTRUCTION_COVERED,BRANCH_MISSED,BRANCH_COVERED,LINE_MISSED,LINE_COVERED,COMPLEXITY_MISSED,COMPLEXITY_COVERED,METHOD_MISSED,METHOD_COVERED
+Test Optimization Lab,com.example.lab.model.enums,OrderStatus,0,51,0,0,0,9,0,1,0,1
+Test Optimization Lab,com.example.lab.model.enums,PaymentMethod,33,0,0,0,6,0,1,0,1,0
+Test Optimization Lab,com.example.lab.model.enums,Currency,39,0,0,0,7,0,1,0,1,0
+Test Optimization Lab,com.example.lab.model.enums,PaymentStatus,39,0,0,0,7,0,1,0,1,0
+Test Optimization Lab,com.example.lab.model.enums,UserStatus,0,27,0,0,0,5,0,1,0,1
+Test Optimization Lab,com.example.lab,TestOptimizationLabApplication,8,0,0,0,3,0,2,0,2,0
+Test Optimization Lab,com.example.lab.model.entity,Address,1,43,10,10,0,5,10,1,0,1
+Test Optimization Lab,com.example.lab.model.entity,Product,27,0,2,0,7,0,5,0,4,0
+Test Optimization Lab,com.example.lab.model.entity,Payment,11,0,0,0,5,0,2,0,2,0
+Test Optimization Lab,com.example.lab.model.entity,Order,20,9,0,0,8,3,3,1,3,1
+Test Optimization Lab,com.example.lab.model.entity,OrderItem,0,20,0,0,0,3,0,1,0,1
+Test Optimization Lab,com.example.lab.model.entity,User,17,0,0,0,6,0,3,0,3,0
+Test Optimization Lab,com.example.lab.service,PaymentService,459,0,73,0,92,0,55,0,17,0
+Test Optimization Lab,com.example.lab.service,UserService,216,159,28,24,42,31,32,13,13,6
+Test Optimization Lab,com.example.lab.service,UserService.PasswordValidation,0,9,0,0,0,1,0,1,0,1
+Test Optimization Lab,com.example.lab.service,OrderService,154,275,16,19,32,67,23,11,10,6
