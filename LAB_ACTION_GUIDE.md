@@ -26,7 +26,7 @@ Follow these lean steps using the Critique-then-Create methodology. Use the cust
 | Stage | Agent (Select from Dropdown) | Core Artifacts / Commands |
 | --- | --- | --- |
 | 0 | Agent Mode (default) | `mvn clean compile`, `mvn test`, `mvn jacoco:report` |
-| 1 | **Test Critique** | Analysis document, `.golden-examples/` |
+| 1 | **Test Critique** | `docs/TEST_ANALYSIS.md`, `.golden-examples/` |
 | 2 | **Test Create** + Prompts | `*Test.java` files, coverage improvement |
 | 3 | **Test Quality Gate** | `Jenkinsfile`, `pom.xml` (SonarQube), JaCoCo thresholds |
 | 4 | Agent Mode (default) | Final validation, commit changes |
@@ -52,11 +52,12 @@ Use **Agent Mode** (default) for setup commands:
 
 1. Ask: "Analyze all services in `com.example.lab.service` for coverage gaps"
 2. Ask: "Identify anti-patterns like flaky tests and redundancies"
-3. Ask: "Document findings for use in test generation"
+3. Ask: "Document findings and save to `docs/TEST_ANALYSIS.md`"
 
 **Alternative**: Use `/coverage-analysis` prompt for quick analysis
 
 After analysis, verify:
+- `#runInTerminal cat docs/TEST_ANALYSIS.md` (confirm file created)
 - Review `.golden-examples/` to understand available patterns
 
 ### Key Analysis Areas
@@ -72,26 +73,26 @@ After analysis, verify:
 **Select "Test Create" agent from the dropdown** for all Stage 2 tasks.
 
 ### Task 2.1 – Refactor Redundant Tests
-- Reference: Analysis redundancy section
+- Reference: `#file:docs/TEST_ANALYSIS.md` redundancy section
 - Use prompt: `/refactor-to-parameterized` for UserServiceTest.java
 - Reference: `.golden-examples/parameterized-tests/` for @ParameterizedTest pattern
 - Verify: `#runInTerminal mvn test -Dtest=UserServiceTest`
 - Target: 50%+ line reduction using @CsvSource/@MethodSource
 
 ### Task 2.2 – Fix Flaky Tests
-- Reference: Analysis anti-patterns section
+- Reference: `#file:docs/TEST_ANALYSIS.md` anti-patterns section
 - Use prompt: `/fix-flaky-test` for OrderServiceTest.java
 - Reference: `.golden-examples/async-patterns/` for CompletableFuture patterns
 - Verify: `#runInTerminal for i in {1..5}; do mvn test -Dtest=OrderServiceTest; done`
 
 ### Task 2.3 – Generate Mockito Tests
-- Reference: Analysis coverage gaps
+- Reference: `#file:docs/TEST_ANALYSIS.md` coverage gaps
 - Reference: `.golden-examples/mockito-mocking/` for BDD Mockito patterns
 - Use `@EnumSource(PaymentMethod.class)` for all payment methods
 - Verify: `#runInTerminal mvn test -Dtest=PaymentServiceTest`
 
 ### Task 2.4 – Generate Exception Tests
-- Reference: Analysis exception gaps
+- Reference: `#file:docs/TEST_ANALYSIS.md` exception gaps
 - Use prompt: `/generate-error-tests` for PaymentService
 - Reference: `.golden-examples/error-handling/`
 - Verify exception messages and error codes
@@ -137,7 +138,7 @@ Switch back to **Agent Mode** (default) for final validation:
 - `#runInTerminal mvn clean compile` (no errors)
 - `#runInTerminal mvn test` (all tests pass)
 - `#runInTerminal mvn verify` (thresholds met)
-- Review analysis for completeness
+- Review `docs/TEST_ANALYSIS.md` for completeness
 - Commit changes with meaningful message
 - Push branch and open PR if required
 
@@ -182,7 +183,7 @@ Switch back to **Agent Mode** (default) for final validation:
 ## Workflow Loop
 
 ```
-Test Critique Agent → Analysis → Test Create Agent → Test Quality Gate Agent
+Test Critique Agent → docs/TEST_ANALYSIS.md → Test Create Agent → Test Quality Gate Agent
 ```
 
-Each stage builds on the previous. The analysis is the bridge between CRITIQUE and CREATE phases.
+Each stage builds on the previous. The analysis file (`docs/TEST_ANALYSIS.md`) is the bridge between CRITIQUE and CREATE phases.
